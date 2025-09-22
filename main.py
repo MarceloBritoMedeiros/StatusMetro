@@ -1,24 +1,48 @@
-import asyncio
-import aiohttp
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import json 
 import pandas as pd
 import numpy as np
-import time
-from datetime import datetime
 import os
-
-TOKEN = os.getenv("MEU_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")  # Onde o bot enviará as mensagens
-
+import firebase_admin
+from firebase_admin import credentials, firestore
 import requests
 
-x = requests.get("http://apps.cptm.sp.gov.br:8080/AppMobileService/api/LinhasMetropolitanasAppV3?versao=4").text
-def gera_status(x):
-    y = json.loads(x)
-    df = pd.DataFrame(y)
-    df_salvo = pd.read_csv("status_metro.csv")
+
+GCP_TOKEN = os.getenv("GCP_TOKEN")
+TOKEN = os.getenv("MEU_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")  # Onde o bot enviará as mensagens
+TABLE = os.getenv("TABLE")
+API_CALL = os.getenv("API_CALL")
+
+# Inicializa o Firebase
+cred = credentials.Certificate(GCP_TOKEN)
+firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+colecao_ref = db.collection(TABLE)
+
+metro_call = requests.get(API_CALL).text
+
+def read_firebase_as_pd():  
+    docs = colecao_ref.stream()
+
+    lista_dados = []  
+
+    for doc in docs:
+        dados_doc = doc.to_dict()
+        dados_doc["id"] = doc.id  # opcional: adiciona o ID do documento
+        lista_dados.append(dados_doc)
+
+    # Converter para DataFrame
+    df = pd.DataFrame(lista_dados)
+    return df
+
+df = read_firebase_as_pd()
+
+
+def gera_status(metro_call):
+    metro_call_dict = json.loads(metro_call)
+    df = pd.DataFrame(metro_call_dict)
+    df_salvo = read_firebase_as_pd()
     cruza1 = pd.merge(df, df_salvo, "inner", "LinhaId", suffixes=("_a", "_b"))
 
     cruza1["mudou"] = np.where(cruza1["Status_a"] != cruza1["Status_b"], 1, 0)
@@ -34,73 +58,62 @@ def gera_status(x):
     for sa, sn, l, n, d in zip(status_antigo, status_novo, linhaid, nome, descricao):
         lista.append(f"Houve mudança do status da linha {l} {n}: \n Status antigo: {sa}\n Status atual: {sn}\n Descrição: {d}")
 
-    print("Salvando status_metro.csv")
-    df.to_csv("status_metro.csv")
-    # print(cruza[cruza["mudou"]==0].empty)
+    #Atualiza a tabela temporária
+    for i in metro_call_dict:
+        doc_ref = colecao_ref.document(str(i["LinhaId"]))
+        doc_ref.update({
+            'Nome':i["Nome"],
+            'DataGeracao':i["DataGeracao"],
+            'Status':i["Status"],
+            'Tipo':i["Tipo"],
+            'Descricao':i["Descricao"],
+            'LinhaId':i["LinhaId"],
+        })
     return lista
 
 # while True:
-mensagens = gera_status(x)
-if mensagens:
-    for i in mensagens:
-        # Substitua pelas suas informações
-        MENSAGEM = i#'Olá, mundo! Esta é uma mensagem automática.'
+def faz_request():
+    mensagens = gera_status(metro_call)
+    retorno = []
+    if mensagens:
+        for i in mensagens:
+            # Substitua pelas suas informações
+            MENSAGEM = i#'Olá, mundo! Esta é uma mensagem automática.'
 
-        # URL da API para enviar mensagens
-        url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+            # URL da API para enviar mensagens
+            url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
 
-        # Parâmetros da requisição
-        params = {
-            'chat_id': CHAT_ID,
-            'text': MENSAGEM
-        }
+            # Parâmetros da requisição
+            params = {
+                'chat_id': CHAT_ID,
+                'text': MENSAGEM
+            }
 
-        # Faz a requisição POST para a API
-        try:
-            response = requests.post(url, data=params)
-            response.raise_for_status()  # Lança um erro para requisições HTTP ruins
-            print("Mensagem enviada com sucesso!")
-        except requests.exceptions.RequestException as e:
-            print(f"Ocorreu um erro: {e}")
-else:
-    print("Sem mudanças")
-    # print(datetime.now().strftime("%H:%M:%S"))
-    # time.sleep(3600)
+            # Faz a requisição POST para a API
+            try:
+                response = requests.post(url, data=params)
+                response.raise_for_status()  # Lança um erro para requisições HTTP ruins
+                retorno.append("Mensagem enviada com sucesso!")
+            except requests.exceptions.RequestException as e:
+                retorno.append(f"Ocorreu um erro: {e}")
+        return retorno
+        
+    else:
+        return "Sem mudanças"
 
+from flask import Flask, jsonify#, request(pode ser usado para ler elementos na requisição futuramente)
 
-# Exemplo de função para buscar dados da sua API
-# async def fetch_api_data():
-#     url = "URL_DA_SUA_API"
-#     async with aiohttp.ClientSession() as session:
-#         async with session.get(url) as response:
-#             return await response.json()  # Ajuste conforme a API
+app = Flask(__name__)
 
-# Função que envia mensagem
-# Função que envia mensagem a cada hora
-# async def send_message(app):
-#     while True:
-#         try:
-#             mensagem = "Mensagem teste"
-#             await app.bot.send_message(chat_id=CHAT_ID, text=mensagem)
-#             print("Mensagem enviada")
-#         except Exception as e:
-#             print(f"Erro ao enviar mensagem: {e}")
-#         await asyncio.sleep(3600)  # 1 hora
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Servidor MetroAPI funcionando!"})
 
-# # Handler do /start
-# async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     await update.message.reply_text("Bot iniciado! Você receberá mensagens a cada hora.")
+@app.route("/update", methods=["GET"])
+def result():
+    result = faz_request()
+    print(result)
+    return jsonify({"message": result})
 
-# # Função principal
-# async def main():
-#     app = ApplicationBuilder().token(TOKEN).build()
-#     app.add_handler(CommandHandler("start", start))
-
-#     # Cria tarefa de envio periódico
-#     asyncio.create_task(send_message(app))
-
-#     # Rodar o bot até ser interrompido
-#     await app.run_polling()
-
-# # Executa
-# asyncio.run(main())
+if __name__ == "__main__":
+    app.run(debug=True)
