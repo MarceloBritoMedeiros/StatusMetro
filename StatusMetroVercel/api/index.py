@@ -2,9 +2,9 @@ import logging
 
 from flask import Flask, jsonify
 
-from config import API_CALL, GCP_TOKEN, TABLE, TOKEN, USERS_TABLE
-from firebase_service import initialize_firebase
-from metro_service import check_status_updates
+from api.config import API_CALL, GCP_TOKEN, TABLE, TOKEN, USERS_TABLE
+from api.firebase_service import initialize_firebase
+from api.metro_service import check_status_updates
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
