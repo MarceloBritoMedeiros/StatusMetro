@@ -75,26 +75,28 @@ def send_message(chat_id, text):
 def send_current_status(chat_id):
     x = requests.get("http://apps.cptm.sp.gov.br:8080/AppMobileService/api/LinhasMetropolitanasAppV3?versao=4").text
     cores = {
-        "AZUL": "🔵",
-        "VERDE": "🟢",
-        "VERMELHA": "🔴",
-        "AMARELA": "🟡",
-        "LILÁS": "🟣",
-        "RUBI": "🔴",       # rubi = vermelho
-        "DIAMANTE": "⚪",   # diamante = branco/transparente
-        "ESMERALDA": "🟢",  # esmeralda = verde
-        "TURQUESA": "🔵",   # turquesa = azul claro
-        "CORAL": "🟠",      # coral = laranja/rosa
-        "SAFIRA": "🔵",     # safira = azul
-        "JADE": "🟢",       # jade = verde
-        "PRATA": "⚪"       # prata = bolinha branca (não existe cinza metálico)
-    }
+    "AZUL": "🔵",
+    "VERDE": "🟢",
+    "VERMELHA": "🔴",
+    "AMARELA": "🟡",
+    "LILÁS": "🟣",
+    "RUBI": "🔴",
+    "DIAMANTE": "⚪",
+    "ESMERALDA": "🟢",
+    "TURQUESA": "🔵",
+    "CORAL": "🟠",
+    "SAFIRA": "🔵",
+    "JADE": "🟢",
+    "PRATA": "⚪",
+    "OURO": "🟡",
+    "LARANJA": "🟠",
+}
 
     text = "Linhas:\n"
 
     for i in json.loads(x):
         text += (        
-            f"{cores[i['Nome']]}L{i['LinhaId']} - {i['Nome'].capitalize()}: {i['Status']} "
+            f"{cores[i['Nome'].upper()]}L{i['LinhaId']} - {i['Nome'].capitalize()}: {i['Status']} "
             f"{'✅' if i['Status']=='Operação Normal' else '⚠️'}"
             f"{'\n🚨Problema: ' + i['Descricao'] if i['Descricao'] != '' else ''}\n"
         )
@@ -159,5 +161,3 @@ def webhook():
 
     return {"ok": True}
 
-# if __name__ == "__main__":
-#     app.run(port=5000, debug=True)
