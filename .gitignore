@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+
+**/.vercel/
+**/__pycache__/
+**/*.py[cod]
+**/venv/
+**/.venv/
+
+# Google Cloud service-account credentials
+**/*firebase-adminsdk-*.json
+**/service-account*.json
+**/*-firebase-adminsdk-*.py
