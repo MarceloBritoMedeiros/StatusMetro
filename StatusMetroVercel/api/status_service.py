@@ -103,6 +103,8 @@ def generate_status(metro_call, collection_ref):
         logging.info("Sem dados prévios no Firestore para comparar.")
         return []
 
+    previous_status = previous_status.apply(normalize_status_row, axis=1)
+
     # Realiza o merge entre o status atual e o salvo no banco usando a chave LinhaId.
     merged_status = pd.merge(
         current_status,
