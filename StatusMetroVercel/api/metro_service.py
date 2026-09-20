@@ -3,7 +3,7 @@ import logging
 import requests
 
 from api.status_service import generate_status
-from telegram_service import send_telegram_message
+from api.telegram_service import send_telegram_message
 
 
 def fetch_metro_status(api_call):
