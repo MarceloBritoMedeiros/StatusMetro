@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from firebase_service import read_firebase_as_dataframe, update_status_documents
+from api.firebase_service import read_firebase_as_dataframe, update_status_documents
 
 IGNORED_STATUSES = {
     "Operação Encerrada",

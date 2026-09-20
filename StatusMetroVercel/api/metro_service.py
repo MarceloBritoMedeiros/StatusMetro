@@ -2,7 +2,7 @@ import logging
 
 import requests
 
-from status_service import generate_status
+from api.status_service import generate_status
 from telegram_service import send_telegram_message
 
 
